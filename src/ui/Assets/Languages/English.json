@@ -885,6 +885,7 @@
       "removeTextForHearingImpaired": "_Remove text for hearing impaired...",
       "removeUnicodeCharacters": "Remove/replace _Unicode characters...",
       "convertActors": "Convert actors...",
+      "speakerProfiles": "Speaker profiles...",
       "joinSubtitles": "_Join subtitles...",
       "splitSubtitle": "_Split subtitle...",
       "mergeTwoSubtitles": "Merge two subtitles...",
@@ -2088,6 +2089,16 @@
       "setColor": "Set color",
       "onlyNames": "Only names",
       "numberOfConversionsX": "Number of conversions: {0}"
+    },
+    "speakerProfiles": {
+      "title": "Speaker profiles",
+      "subtitle": "Review speaker names and gender metadata used during translation.",
+      "summaryXSpeakersYLines": "{0} speakers used in {1} subtitle lines",
+      "gender": "Gender",
+      "confidence": "Confidence",
+      "source": "Source",
+      "saveErrorX": "The subtitle was saved, but its speaker profiles could not be saved: {0}",
+      "loadWarningX": "Speaker profiles were ignored: {0}"
     },
     "joinSubtitles": {
       "title": "Join subtitles",

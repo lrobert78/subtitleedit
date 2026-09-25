@@ -1,4 +1,5 @@
-﻿using Nikse.SubtitleEdit.Core.SubtitleFormats;
+﻿using Nikse.SubtitleEdit.Core.Common;
+using Nikse.SubtitleEdit.Core.SubtitleFormats;
 using Nikse.SubtitleEdit.Features.Main;
 using System;
 using System.Linq;
@@ -36,6 +37,7 @@ public class UndoRedoItem
     // snapshot without it restores the wrong picture after "Set video offset" (which moves the
     // rows and the offset together when the file's time codes are kept).
     public long VideoOffsetInMs { get; set; }
+    public SpeakerProfileCollection SpeakerProfiles { get; set; } = new();
     public int[] SelectedLines { get; set; }
     public int CaretIndex { get; set; }
     public int SelectionLength { get; set; }
@@ -90,6 +92,7 @@ public class UndoRedoItem
             IsEditOriginalMode = item.IsEditOriginalMode,
             SubtitleOriginalFormat = item.SubtitleOriginalFormat,
             VideoOffsetInMs = item.VideoOffsetInMs,
+            SpeakerProfiles = new SpeakerProfileCollection(item.SpeakerProfiles),
             // Preserve the original timestamp — every Clone() used to overwrite
             // Created with DateTime.Now via the constructor, so any UI that
             // displays Created (or any logic that relies on the chronological

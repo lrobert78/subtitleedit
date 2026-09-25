@@ -14,8 +14,8 @@ not replace the editor, waveform, media pipeline, speech-to-text engines, or sub
 
 ## Delivery sequence
 
-1. Speaker profile model and versioned `*.speakers.json` sidecar.
-2. Automatic sidecar loading/saving and a speaker profile editor.
+1. Speaker profile model and versioned `*.speakers.json` sidecar. **Complete.**
+2. Automatic sidecar loading/saving and a speaker profile editor. **Complete.**
 3. Actor and gender metadata in `TranslateRow`.
 4. Actor and gender fields in the existing advanced llama.cpp/Ollama batch protocol.
 5. A provider-neutral context-batch protocol for OpenAI-compatible APIs and Gemini.
@@ -44,6 +44,12 @@ uses `film.en.speakers.json`:
 `Paragraph.Actor` remains the segment-to-speaker assignment. Profiles are matched to actors using
 case-insensitive, whitespace-normalized display names. The sidecar is optional: a missing or
 damaged file must never prevent the subtitle itself from opening.
+
+The editor is available from **Tools → Speaker profiles...**. It lists every actor used by the
+subtitle, allows names and gender metadata to be corrected, and records manual gender changes with
+`source: "manual"`. Saving the subtitle writes the sidecar when profiles exist (or updates an
+existing sidecar); opening the subtitle restores it automatically. Auto Cast creates an `Unknown`
+profile for each diarized speaker so its result is ready for review.
 
 ## First vertical slice
 

@@ -135,6 +135,7 @@ using Nikse.SubtitleEdit.Features.Tools.BridgeGaps;
 using Nikse.SubtitleEdit.Features.Tools.ChangeCasing;
 using Nikse.SubtitleEdit.Features.Tools.ChangeFormatting;
 using Nikse.SubtitleEdit.Features.Tools.ConvertActors;
+using Nikse.SubtitleEdit.Features.Tools.SpeakerProfiles;
 using Nikse.SubtitleEdit.Features.Tools.RemoveUnicodeCharacters;
 using Nikse.SubtitleEdit.Features.Tools.AiReview;
 using Nikse.SubtitleEdit.Features.Tools.FixCommonErrors;
@@ -8505,6 +8506,47 @@ public partial class MainViewModel :
     }
 
     [RelayCommand]
+    private async Task ShowToolsSpeakerProfiles()
+    {
+        if (Window == null)
+        {
+            return;
+        }
+
+        if (IsEmpty)
+        {
+            ShowSubtitleNotLoadedMessage();
+            return;
+        }
+
+        var subtitle = GetUpdateSubtitle();
+        var result = await ShowDialogAsync<SpeakerProfilesWindow, SpeakerProfilesViewModel>(vm => vm.Initialize(subtitle));
+        if (!result.OkPressed)
+        {
+            return;
+        }
+
+        _undoRedoManager.CheckForChanges(null);
+        foreach (var line in Subtitles)
+        {
+            if (!string.IsNullOrWhiteSpace(line.Actor) &&
+                result.RenamedSpeakers.TryGetValue(SpeakerProfileCollection.NormalizeActor(line.Actor), out var newName))
+            {
+                line.Actor = newName;
+            }
+        }
+
+        subtitle.SpeakerProfiles.Profiles.Clear();
+        foreach (var profile in result.ResultProfiles.Profiles)
+        {
+            subtitle.SpeakerProfiles.AddOrUpdate(profile);
+        }
+
+        _undoRedoManager.Do(MakeUndoRedoObject(Se.Language.Tools.SpeakerProfiles.Title));
+        RefreshSubtitlePreview();
+    }
+
+    [RelayCommand]
     private async Task ShowToolsRemoveUnicodeCharacters()
     {
         if (Window == null)
@@ -11579,6 +11621,18 @@ public partial class MainViewModel :
         if (!ShowColumnActor)
         {
             ToggleShowColumnActor();
+        }
+
+        var workingSubtitle = GetUpdateSubtitle();
+        foreach (var actor in workingSubtitle.Paragraphs
+                     .Select(paragraph => paragraph.Actor?.Trim())
+                     .Where(actor => !string.IsNullOrEmpty(actor))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (workingSubtitle.SpeakerProfiles.FindByActor(actor!) == null)
+            {
+                workingSubtitle.SpeakerProfiles.AddOrUpdate(new SpeakerProfile { DisplayName = actor! });
+            }
         }
     }
 
@@ -22414,6 +22468,7 @@ public partial class MainViewModel :
             IsEditOriginalMode = IsEditOriginalMode,
             SubtitleOriginalFormat = _subtitleOriginal?.OriginalFormat,
             VideoOffsetInMs = Se.Settings.General.CurrentVideoOffsetInMs,
+            SpeakerProfiles = new SpeakerProfileCollection(_subtitle.SpeakerProfiles),
         };
     }
 
@@ -22449,6 +22504,11 @@ public partial class MainViewModel :
 
         _subtitle.Header = undoRedoObject.SubtitleHeader;
         _subtitle.Footer = undoRedoObject.SubtitleFooter;
+        _subtitle.SpeakerProfiles.Profiles.Clear();
+        foreach (var profile in undoRedoObject.SpeakerProfiles.Profiles)
+        {
+            _subtitle.SpeakerProfiles.AddOrUpdate(profile);
+        }
 
         // Restore the original-subtitle file-level state too - the undo hash covers it,
         // so leaving it untouched makes the restored state hash-mismatch its own entry,
@@ -24069,6 +24129,8 @@ public partial class MainViewModel :
                 SelectedEncoding = Encodings.FirstOrDefault(p => p.DisplayName.StartsWith("utf-8", StringComparison.OrdinalIgnoreCase)) ?? SelectedEncoding;
             }
 
+            var speakerProfilesLoadError = LoadSpeakerProfiles(subtitle, fileName);
+
             _subtitleFileName = fileName;
             _subtitle = subtitle;
             _lastOpenSaveFormat = subtitle.OriginalFormat;
@@ -24085,7 +24147,10 @@ public partial class MainViewModel :
 
             SetSubtitles(_subtitle);
             _changeSubtitleHash = GetFastHash();
-            ShowStatus(string.Format(Se.Language.General.SubtitleLoadedX, fileName));
+            ShowStatus(string.IsNullOrEmpty(speakerProfilesLoadError)
+                ? string.Format(Se.Language.General.SubtitleLoadedX, fileName)
+                : $"{string.Format(Se.Language.General.SubtitleLoadedX, fileName)} " +
+                  string.Format(Se.Language.Tools.SpeakerProfiles.LoadWarningX, speakerProfilesLoadError));
             LoadBookmarks();
 
             // SE 4 parity (#13588). This runs after LoadBookmarks because bookmarks are stored by
@@ -24185,6 +24250,19 @@ public partial class MainViewModel :
         {
             await SeekVideoToSelectedLineAsync();
         }
+    }
+
+    private static string LoadSpeakerProfiles(Subtitle subtitle, string subtitleFileName)
+    {
+        if (SpeakerProfileSidecar.TryLoad(subtitleFileName, out var profiles, out var error))
+        {
+            foreach (var profile in profiles.Profiles)
+            {
+                subtitle.SpeakerProfiles.AddOrUpdate(profile);
+            }
+        }
+
+        return error;
     }
 
     // Where the video should be opened when a session is restored: the start time of the line the
@@ -25942,6 +26020,11 @@ public partial class MainViewModel :
             return false;
         }
 
+        if (!await SaveSpeakerProfiles(_subtitleFileName, subtitleToSave, isAutoSave))
+        {
+            return false;
+        }
+
         _changeSubtitleHash = GetFastHash();
         _lastOpenSaveFormat = SelectedSubtitleFormat;
 
@@ -26014,12 +26097,46 @@ public partial class MainViewModel :
             return false;
         }
 
+        if (!await SaveSpeakerProfiles(fileName, GetSaveSubtitle(), isAutoSave))
+        {
+            return false;
+        }
+
         _changeSubtitleHash = GetFastHash();
         _lastOpenSaveFormat = SelectedSubtitleFormat;
 
         new SubtitleMarksPersistence(GetSaveSubtitle(), _subtitleFileName).Save();
 
         return true;
+    }
+
+    private async Task<bool> SaveSpeakerProfiles(string subtitleFileName, Subtitle subtitle, bool isAutoSave)
+    {
+        var sidecarFileName = SpeakerProfileSidecar.GetFileName(subtitleFileName);
+        if (subtitle.SpeakerProfiles.Profiles.Count == 0 && !File.Exists(sidecarFileName))
+        {
+            return true;
+        }
+
+        try
+        {
+            await Task.Run(() => SpeakerProfileSidecar.Save(subtitleFileName, subtitle.SpeakerProfiles));
+            return true;
+        }
+        catch (Exception exception)
+        {
+            var message = string.Format(Se.Language.Tools.SpeakerProfiles.SaveErrorX, exception.Message);
+            if (isAutoSave)
+            {
+                ShowStatus(message);
+            }
+            else
+            {
+                await MessageBox.Show(Window!, Se.Language.General.Error, message, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            return false;
+        }
     }
 
     private async Task<bool> SaveSubtitleOriginal(bool isAutoSave = false)
@@ -28451,6 +28568,15 @@ public partial class MainViewModel :
             hash = hash * 23 + (_subtitle.Header is { } header ? string.GetHashCode(header.AsSpan().Trim()) : 0);
             hash = hash * 23 + (_subtitle.Footer is { } footer ? string.GetHashCode(footer.AsSpan().Trim()) : 0);
 
+            foreach (var profile in _subtitle.SpeakerProfiles.Profiles)
+            {
+                hash = hash * 23 + (profile.Id?.GetHashCode() ?? 0);
+                hash = hash * 23 + (profile.DisplayName?.GetHashCode() ?? 0);
+                hash = hash * 23 + profile.Gender.GetHashCode();
+                hash = hash * 23 + (profile.Confidence?.GetHashCode() ?? 0);
+                hash = hash * 23 + (profile.Source?.GetHashCode() ?? 0);
+            }
+
             _subtitleOriginal ??= new Subtitle();
             hash = hash * 23 + (_subtitleOriginal.Header is { } headerOrg ? string.GetHashCode(headerOrg.AsSpan().Trim()) : 0);
             hash = hash * 23 + (_subtitleOriginal.Footer is { } footerOrg ? string.GetHashCode(footerOrg.AsSpan().Trim()) : 0);
@@ -28519,6 +28645,15 @@ public partial class MainViewModel :
             hash = hash * 23 + (SelectedEncoding.DisplayName?.GetHashCode() ?? 0);
             hash = hash * 23 + (_subtitle.Header is { } header ? string.GetHashCode(header.AsSpan().Trim()) : 0);
             hash = hash * 23 + (_subtitle.Footer is { } footer ? string.GetHashCode(footer.AsSpan().Trim()) : 0);
+
+            foreach (var profile in _subtitle.SpeakerProfiles.Profiles)
+            {
+                hash = hash * 23 + (profile.Id?.GetHashCode() ?? 0);
+                hash = hash * 23 + (profile.DisplayName?.GetHashCode() ?? 0);
+                hash = hash * 23 + profile.Gender.GetHashCode();
+                hash = hash * 23 + (profile.Confidence?.GetHashCode() ?? 0);
+                hash = hash * 23 + (profile.Source?.GetHashCode() ?? 0);
+            }
 
             var count = Subtitles.Count;
             for (var i = 0; i < count; i++)

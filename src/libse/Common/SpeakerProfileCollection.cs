@@ -69,7 +69,7 @@ namespace Nikse.SubtitleEdit.Core.Common
                 string.Equals(profile.Id, id, StringComparison.OrdinalIgnoreCase));
         }
 
-        private static string NormalizeActor(string actor)
+        public static string NormalizeActor(string actor)
         {
             return string.Join(" ", (actor ?? string.Empty).Split((char[])null, StringSplitOptions.RemoveEmptyEntries));
         }

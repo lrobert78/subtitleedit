@@ -313,6 +313,7 @@ public static class InitNativeMacMenu
             Item(Clean(l.Renumber), v => v.ShowToolsRenumberCommand),
             Item(Clean(l.RemoveTextForHearingImpaired), v => v.ShowToolsRemoveTextForHearingImpairedCommand),
             Item(Clean(l.ConvertActors), v => v.ShowToolsConvertActorsCommand),
+            Item(Clean(l.SpeakerProfiles), v => v.ShowToolsSpeakerProfilesCommand),
             Item(Clean(l.RemoveUnicodeCharacters), v => v.ShowToolsRemoveUnicodeCharactersCommand),
         };
         var toolItems = new NativeMenu();

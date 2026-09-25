@@ -1,3 +1,4 @@
+using Nikse.SubtitleEdit.Core.Common;
 using Nikse.SubtitleEdit.Features.Main;
 using Nikse.SubtitleEdit.Logic.Config;
 using Nikse.SubtitleEdit.Logic.UndoRedo;
@@ -749,5 +750,23 @@ public class UndoRedoManagerTests
         // generally, not just the Created field).
         Assert.Equal(original.Hash, clone.Hash);
         Assert.Equal(original.Description, clone.Description);
+    }
+
+    [Fact]
+    public void Clone_DeepCopiesSpeakerProfiles()
+    {
+        var original = new UndoRedoItem("test", [], 1, null, [], 0, 0);
+        original.SpeakerProfiles.AddOrUpdate(new SpeakerProfile
+        {
+            Id = "speaker-1",
+            DisplayName = "Anna",
+            Gender = SpeakerGender.Female,
+        });
+
+        var clone = UndoRedoItem.Clone(original);
+        Assert.NotNull(clone);
+        clone.SpeakerProfiles.Profiles[0].DisplayName = "Changed";
+
+        Assert.Equal("Anna", original.SpeakerProfiles.Profiles[0].DisplayName);
     }
 }

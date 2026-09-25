@@ -18,6 +18,7 @@ public class LanguageTools
     public LanguageChangeCasing ChangeCasing { get; set; } = new();
     public LanguageChangeFormatting ChangeFormatting { get; set; } = new();
     public LanguageConvertActors ConvertActors { get; set; } = new();
+    public LanguageSpeakerProfiles SpeakerProfiles { get; set; } = new();
     public LanguageJoinSubtitles JoinSubtitles { get; set; } = new();
     public LanguageMergeTwoSubtitles MergeTwoSubtitles { get; set; } = new();
     public LanguageSplitSubtitle SplitSubtitle { get; set; } = new();

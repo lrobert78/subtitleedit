@@ -569,6 +569,11 @@ public static class InitMenu
             },
             new MenuItem
             {
+                Header = l.SpeakerProfiles,
+                Command = vm.ShowToolsSpeakerProfilesCommand,
+            },
+            new MenuItem
+            {
                 Header = l.RemoveUnicodeCharacters,
                 Command = vm.ShowToolsRemoveUnicodeCharactersCommand,
             },

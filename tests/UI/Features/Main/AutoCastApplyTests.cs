@@ -126,6 +126,7 @@ public class AutoCastApplyTests : IDisposable
         Assert.Equal(2, vm.Subtitles.Count);
         Assert.Equal("Alice", vm.Subtitles[0].Actor);
         Assert.Equal("Bob", vm.Subtitles[1].Actor);
+        Assert.Equal(2, vm.GetUpdateSubtitle().SpeakerProfiles.Profiles.Count);
     }
 
     [AvaloniaFact]
@@ -145,5 +146,36 @@ public class AutoCastApplyTests : IDisposable
         Assert.Equal("Alice", vm.Subtitles[0].Actor);
         Assert.Equal("Bob", vm.Subtitles[1].Actor);
         Assert.Equal("Hello there.", vm.Subtitles[0].Text);
+        Assert.Equal(2, vm.GetUpdateSubtitle().SpeakerProfiles.Profiles.Count);
+    }
+
+    [AvaloniaFact]
+    public async Task SubtitleOpenAndSaveRoundTripsSpeakerSidecar()
+    {
+        var subtitleFileName = WriteSrt("speaker-sidecar.srt");
+        var profiles = new SpeakerProfileCollection();
+        profiles.AddOrUpdate(new SpeakerProfile
+        {
+            Id = "speaker-1",
+            DisplayName = "Speaker 1",
+            Gender = SpeakerGender.Unknown,
+        });
+        SpeakerProfileSidecar.Save(subtitleFileName, profiles);
+
+        var (window, vm) = ShowEmptyMainWindow();
+        await vm.SubtitleOpen(subtitleFileName, skipLoadVideo: true);
+        Settle(window);
+
+        var loadedProfile = Assert.Single(vm.GetUpdateSubtitle().SpeakerProfiles.Profiles);
+        Assert.Equal("speaker-1", loadedProfile.Id);
+        loadedProfile.Gender = SpeakerGender.Female;
+        loadedProfile.Source = "manual";
+
+        await vm.CommandFileSaveCommand.ExecuteAsync(null);
+
+        Assert.True(SpeakerProfileSidecar.TryLoad(subtitleFileName, out var saved, out var error), error);
+        var savedProfile = Assert.Single(saved.Profiles);
+        Assert.Equal(SpeakerGender.Female, savedProfile.Gender);
+        Assert.Equal("manual", savedProfile.Source);
     }
 }
