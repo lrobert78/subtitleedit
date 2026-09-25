@@ -14,6 +14,8 @@ namespace Nikse.SubtitleEdit.Core.Common
 
         public List<Paragraph> Paragraphs { get; private set; }
 
+        public SpeakerProfileCollection SpeakerProfiles { get; private set; }
+
         public string Header { get; set; } = string.Empty;
         public string Footer { get; set; } = string.Empty;
 
@@ -29,6 +31,7 @@ namespace Nikse.SubtitleEdit.Core.Common
         public Subtitle(List<Paragraph> paragraphs)
         {
             Paragraphs = paragraphs;
+            SpeakerProfiles = new SpeakerProfileCollection();
             FileName = "Untitled";
         }
 
@@ -43,6 +46,7 @@ namespace Nikse.SubtitleEdit.Core.Common
             {
                 FileName = "Untitled";
                 Paragraphs = new List<Paragraph>();
+                SpeakerProfiles = new SpeakerProfileCollection();
                 return;
             }
 
@@ -51,6 +55,8 @@ namespace Nikse.SubtitleEdit.Core.Common
             {
                 Paragraphs.Add(new Paragraph(p, generateNewId));
             }
+
+            SpeakerProfiles = new SpeakerProfileCollection(subtitle.SpeakerProfiles);
 
             Header = subtitle.Header;
             Footer = subtitle.Footer;
@@ -83,6 +89,7 @@ namespace Nikse.SubtitleEdit.Core.Common
         public SubtitleFormat ReloadLoadSubtitle(List<string> lines, string fileName, SubtitleFormat format, SubtitleFormat format2 = null, SubtitleFormat format3 = null)
         {
             Paragraphs.Clear();
+            SpeakerProfiles = new SpeakerProfileCollection();
 
             if (format != null && format.IsMine(lines, fileName))
             {
@@ -276,6 +283,7 @@ namespace Nikse.SubtitleEdit.Core.Common
         {
             FileName = fileName;
             Paragraphs = new List<Paragraph>();
+            SpeakerProfiles = new SpeakerProfileCollection();
             List<string> lines;
             try
             {
