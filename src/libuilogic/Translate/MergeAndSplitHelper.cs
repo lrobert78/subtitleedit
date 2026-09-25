@@ -150,7 +150,10 @@ public static partial class MergeAndSplitHelper
             Show = p.Show,
             Hide = p.Hide,
             Duration = p.Duration,
-            Text = p.Text
+            Text = p.Text,
+            SpeakerId = p.SpeakerId,
+            Actor = p.Actor,
+            Gender = p.Gender,
         }).ToArray();
     }
 

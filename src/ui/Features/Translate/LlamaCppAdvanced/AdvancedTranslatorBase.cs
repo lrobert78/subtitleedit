@@ -102,7 +102,13 @@ public abstract class AdvancedTranslatorBase : IAutoTranslator, IBatchContextTra
         for (var i = 0; i < count; i++)
         {
             stripped[i] = StrippedLine.Strip(rows[index + i].Text);
-            lines.Add(new LlamaCppAdvancedProtocol.BatchLine(i + 1, stripped[i].Text));
+            var row = rows[index + i];
+            lines.Add(new LlamaCppAdvancedProtocol.BatchLine(
+                i + 1,
+                stripped[i].Text,
+                row.SpeakerId,
+                row.Actor,
+                row.Gender));
         }
 
         // Translation-tuned models (TranslateGemma) can echo history into a lone line's
@@ -230,7 +236,12 @@ public abstract class AdvancedTranslatorBase : IAutoTranslator, IBatchContextTra
                 continue; // a pure override/drawing line is no use as an example pair
             }
 
-            history.Add(new LlamaCppAdvancedProtocol.HistoryPair(source, target));
+            history.Add(new LlamaCppAdvancedProtocol.HistoryPair(
+                source,
+                target,
+                rows[i].SpeakerId,
+                rows[i].Actor,
+                rows[i].Gender));
         }
 
         history.Reverse();
@@ -238,8 +249,13 @@ public abstract class AdvancedTranslatorBase : IAutoTranslator, IBatchContextTra
     }
 
     /// <summary>Every requested line number must be present, and non-empty for non-empty sources.</summary>
-    private static bool IsComplete(Dictionary<int, string> map, List<LlamaCppAdvancedProtocol.BatchLine> lines)
+    internal static bool IsComplete(Dictionary<int, string> map, List<LlamaCppAdvancedProtocol.BatchLine> lines)
     {
+        if (map.Count != lines.Count)
+        {
+            return false;
+        }
+
         foreach (var line in lines)
         {
             if (!map.TryGetValue(line.Number, out var translation))

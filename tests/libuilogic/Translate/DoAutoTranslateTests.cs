@@ -40,6 +40,7 @@ public class DoAutoTranslateTests
     {
         public int BatchSize { get; set; } = 4;
         public List<int> BatchStartIndexes { get; } = new();
+        public List<(string SpeakerId, string Actor, SpeakerGender Gender)> ReceivedSpeakerMetadata { get; } = new();
 
         public string Name => "FakeBatchTranslator";
         public string Url => "https://example.com";
@@ -65,7 +66,9 @@ public class DoAutoTranslateTests
             var count = Math.Min(BatchSize, rows.Count - index);
             for (var i = 0; i < count; i++)
             {
-                rows[index + i].TranslatedText = "X" + rows[index + i].Text;
+                var row = rows[index + i];
+                ReceivedSpeakerMetadata.Add((row.SpeakerId, row.Actor, row.Gender));
+                row.TranslatedText = "X" + row.Text;
             }
 
             return Task.FromResult(count);
@@ -148,6 +151,31 @@ public class DoAutoTranslateTests
 
         // 4 + 4 + 2 - the last batch is trimmed to what is left, and no line is sent twice.
         Assert.Equal(new List<int> { 0, 4, 8 }, translator.BatchStartIndexes);
+    }
+
+    [Fact]
+    public async Task BatchContextTranslator_ReceivesSpeakerProfileMetadata()
+    {
+        var subtitle = MakeSubtitle(2);
+        subtitle.Paragraphs[0].Actor = " Speaker  1 ";
+        subtitle.Paragraphs[1].Actor = "Speaker 2";
+        subtitle.SpeakerProfiles.AddOrUpdate(new SpeakerProfile
+        {
+            Id = "speaker-1",
+            DisplayName = "Speaker 1",
+            Gender = SpeakerGender.Female,
+        });
+        var translator = new FakeBatchTranslator();
+
+        await new DoAutoTranslate().DoTranslate(
+            subtitle,
+            new TranslationPair("English", "en"),
+            new TranslationPair("Polish", "pl"),
+            translator,
+            CancellationToken.None);
+
+        Assert.Equal(("speaker-1", " Speaker  1 ", SpeakerGender.Female), translator.ReceivedSpeakerMetadata[0]);
+        Assert.Equal((string.Empty, "Speaker 2", SpeakerGender.Unknown), translator.ReceivedSpeakerMetadata[1]);
     }
 
     [Fact]

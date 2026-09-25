@@ -24,13 +24,27 @@ public static class LlamaCppAdvancedProtocol
     private const string ProtocolText =
         "\n\nThe user message is a JSON object. \"history\" holds recent already-translated lines (source and translation) - " +
         "use them only for context and consistency (names, pronouns, formality), do not re-translate them. " +
-        "\"lines\" holds the lines to translate now, each with a line number \"n\" and its \"text\" " +
+        "\"lines\" holds the lines to translate now, each with a line number \"n\" and its \"text\". " +
+        "An item can also include \"speakerId\", \"speaker\", and \"gender\" metadata. Use speaker metadata " +
+        "only to resolve context, pronouns, grammatical gender, tone, and consistent forms of address; never output, " +
+        "translate, or alter that metadata. Gender may be Unknown and must not be guessed. " +
         "(a \"\\n\" inside a text is a line break inside that subtitle).\n" +
         "Answer with ONLY a JSON object mapping every line number to its translation, e.g. " +
         "{\"1\":\"...\",\"2\":\"...\"}. Include each line number exactly once and nothing else.";
 
-    public record HistoryPair(string Source, string Target);
-    public record BatchLine(int Number, string Text);
+    public record HistoryPair(
+        string Source,
+        string Target,
+        string SpeakerId = "",
+        string Speaker = "",
+        SpeakerGender Gender = SpeakerGender.Unknown);
+
+    public record BatchLine(
+        int Number,
+        string Text,
+        string SpeakerId = "",
+        string Speaker = "",
+        SpeakerGender Gender = SpeakerGender.Unknown);
 
     /// <summary>
     /// Builds the system prompt. Placeholders are replaced (not string.Format'ed) so braces in
@@ -110,6 +124,7 @@ public static class LlamaCppAdvancedProtocol
                 writer.WriteStartObject();
                 writer.WriteString("source", ToWireText(pair.Source));
                 writer.WriteString("translation", ToWireText(pair.Target));
+                WriteSpeakerMetadata(writer, pair.SpeakerId, pair.Speaker, pair.Gender);
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();
@@ -120,6 +135,7 @@ public static class LlamaCppAdvancedProtocol
                 writer.WriteStartObject();
                 writer.WriteNumber("n", line.Number);
                 writer.WriteString("text", ToWireText(line.Text));
+                WriteSpeakerMetadata(writer, line.SpeakerId, line.Speaker, line.Gender);
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();
@@ -128,6 +144,30 @@ public static class LlamaCppAdvancedProtocol
         }
 
         return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static void WriteSpeakerMetadata(
+        Utf8JsonWriter writer,
+        string speakerId,
+        string speaker,
+        SpeakerGender gender)
+    {
+        if (!string.IsNullOrWhiteSpace(speakerId))
+        {
+            writer.WriteString("speakerId", speakerId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(speaker))
+        {
+            writer.WriteString("speaker", speaker);
+        }
+
+        if (gender != SpeakerGender.Unknown ||
+            !string.IsNullOrWhiteSpace(speakerId) ||
+            !string.IsNullOrWhiteSpace(speaker))
+        {
+            writer.WriteString("gender", gender.ToString());
+        }
     }
 
     /// <summary>

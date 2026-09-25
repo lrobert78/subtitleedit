@@ -42,7 +42,7 @@ public class DoAutoTranslate
             var rows = new ObservableCollection<TranslateRow>();
             foreach (var p in subtitle.Paragraphs)
             {
-                rows.Add(new TranslateRow { Number = p.Number, Show = p.StartTime.TimeSpan, Hide = p.EndTime.TimeSpan, Duration = p.Duration.ToShortDisplayString(), Text = p.Text });
+                rows.Add(TranslateRow.FromParagraph(p, subtitle.SpeakerProfiles));
             }
 
             // The "advanced" local-LLM engines run their own batch loop: numbered batches with a

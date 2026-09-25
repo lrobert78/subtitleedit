@@ -2640,14 +2640,8 @@ public partial class AutoTranslateViewModel : ObservableObject
     {
         Dispatcher.UIThread.Invoke(() =>
         {
-            var rows = _subtitle.Paragraphs.Select(p => new TranslateRow
-            {
-                Number = p.Number,
-                Show = p.StartTime.TimeSpan,
-                Hide = p.EndTime.TimeSpan,
-                Duration = p.Duration.ToShortDisplayString(),
-                Text = p.Text,
-            });
+            var rows = _subtitle.Paragraphs.Select(p =>
+                Nikse.SubtitleEdit.UiLogic.Translate.TranslateRow.FromParagraph(p, _subtitle.SpeakerProfiles));
 
             Rows.Clear();
             Rows.AddRange(rows);

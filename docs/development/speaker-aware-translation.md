@@ -16,8 +16,8 @@ not replace the editor, waveform, media pipeline, speech-to-text engines, or sub
 
 1. Speaker profile model and versioned `*.speakers.json` sidecar. **Complete.**
 2. Automatic sidecar loading/saving and a speaker profile editor. **Complete.**
-3. Actor and gender metadata in `TranslateRow`.
-4. Actor and gender fields in the existing advanced llama.cpp/Ollama batch protocol.
+3. Actor and gender metadata in `TranslateRow`. **Complete.**
+4. Actor and gender fields in the existing advanced llama.cpp/Ollama batch protocol. **Complete.**
 5. A provider-neutral context-batch protocol for OpenAI-compatible APIs and Gemini.
 6. A diarization assignment abstraction, followed by an optional pyannote backend.
 
