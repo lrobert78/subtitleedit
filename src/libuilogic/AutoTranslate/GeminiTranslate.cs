@@ -7,13 +7,14 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Nikse.SubtitleEdit.UiLogic.Http;
 
 namespace Nikse.SubtitleEdit.UiLogic.AutoTranslate
 {
-    public class GeminiTranslate : IAutoTranslator, IDisposable
+    public class GeminiTranslate : IAutoTranslator, IBatchContextTranslator, IDisposable
     {
         public static string StaticName { get; set; } = "Google Gemini";
         public override string ToString() => StaticName;
@@ -160,6 +161,123 @@ namespace Nikse.SubtitleEdit.UiLogic.AutoTranslate
             }
 
             return outputText;
+        }
+
+        public Task<int> TranslateBatchAsync(
+            System.Collections.ObjectModel.ObservableCollection<TranslateRow> rows,
+            int index,
+            string sourceLanguageCode,
+            string targetLanguageCode,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(Configuration.Settings.Tools.GeminiPrompt))
+            {
+                Configuration.Settings.Tools.GeminiPrompt = new ToolsSettings().GeminiPrompt;
+            }
+
+            var systemPrompt = ContextBatchTranslationProtocol.BuildSystemPrompt(
+                Configuration.Settings.Tools.GeminiPrompt,
+                sourceLanguageCode,
+                targetLanguageCode);
+            return ContextBatchTranslationRunner.TranslateBatchAsync(
+                rows,
+                index,
+                (userContent, token) => SendBatchRequestAsync(systemPrompt, userContent, token),
+                cancellationToken);
+        }
+
+        internal static string BuildBatchRequestJson(string systemPrompt, string userContent)
+        {
+            using var stream = new System.IO.MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                writer.WriteStartObject("systemInstruction");
+                writer.WriteStartArray("parts");
+                WriteTextPart(writer, systemPrompt);
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+
+                writer.WriteStartArray("contents");
+                writer.WriteStartObject();
+                writer.WriteString("role", "user");
+                writer.WriteStartArray("parts");
+                WriteTextPart(writer, userContent);
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+                writer.WriteEndArray();
+
+                writer.WriteStartObject("generationConfig");
+                writer.WriteString("responseMimeType", "application/json");
+                writer.WriteEndObject();
+                writer.WriteEndObject();
+            }
+
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+
+        private async Task<string> SendBatchRequestAsync(
+            string systemPrompt,
+            string userContent,
+            CancellationToken cancellationToken)
+        {
+            int[] retryDelays = { 555, 3007, 7013 };
+            HttpResponseMessage result = null!;
+            var resultContent = string.Empty;
+            var switchedBaseUrl = false;
+            for (var attempt = 0; attempt <= retryDelays.Length; attempt++)
+            {
+                using var content = new StringContent(
+                    BuildBatchRequestJson(systemPrompt, userContent), Encoding.UTF8, "application/json");
+                result = await _httpClient.PostAsync(_baseUrl, content, cancellationToken);
+
+                if (result.StatusCode == System.Net.HttpStatusCode.NotFound && !switchedBaseUrl)
+                {
+                    result.Dispose();
+                    _baseUrl = _baseUrl.Contains("v1beta")
+                        ? $"https://generativelanguage.googleapis.com/v1/models/{Configuration.Settings.Tools.GeminiModel}:generateContent"
+                        : $"https://generativelanguage.googleapis.com/v1beta/models/{Configuration.Settings.Tools.GeminiModel}:generateContent";
+                    switchedBaseUrl = true;
+                    continue;
+                }
+
+                resultContent = await result.Content.ReadAsStringAsync(cancellationToken);
+                if (!DeepLTranslate.ShouldRetry(result, resultContent) || attempt == retryDelays.Length)
+                {
+                    break;
+                }
+
+                result.Dispose();
+                await Task.Delay(retryDelays[attempt], cancellationToken);
+            }
+
+            using (result)
+            {
+                if (!result.IsSuccessStatusCode)
+                {
+                    Error = resultContent;
+                    SeLogger.Error($"GeminiTranslate failed calling API at {_baseUrl}: Status code={result.StatusCode}{Environment.NewLine}{resultContent}");
+                }
+
+                result.EnsureSuccessStatusCode();
+            }
+
+            var resultText = new SeJsonParser().GetFirstObject(resultContent, "text");
+            if (resultText == null)
+            {
+                Error = resultContent;
+                SeLogger.Error($"GeminiTranslate got no text from {_baseUrl}: {resultContent}");
+                throw new Exception(MakeNoTextMessage(resultContent));
+            }
+
+            return Json.DecodeJsonText(resultText).Trim();
+        }
+
+        private static void WriteTextPart(Utf8JsonWriter writer, string text)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("text", text);
+            writer.WriteEndObject();
         }
 
         /// <summary>

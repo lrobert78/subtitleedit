@@ -18,7 +18,7 @@ not replace the editor, waveform, media pipeline, speech-to-text engines, or sub
 2. Automatic sidecar loading/saving and a speaker profile editor. **Complete.**
 3. Actor and gender metadata in `TranslateRow`. **Complete.**
 4. Actor and gender fields in the existing advanced llama.cpp/Ollama batch protocol. **Complete.**
-5. A provider-neutral context-batch protocol for OpenAI-compatible APIs and Gemini.
+5. A provider-neutral context-batch protocol for OpenAI-compatible APIs and Gemini. **Complete.**
 6. A diarization assignment abstraction, followed by an optional pyannote backend.
 
 ## Sidecar format
@@ -50,6 +50,19 @@ subtitle, allows names and gender metadata to be corrected, and records manual g
 `source: "manual"`. Saving the subtitle writes the sidecar when profiles exist (or updates an
 existing sidecar); opening the subtitle restores it automatically. Auto Cast creates an `Unknown`
 profile for each diarized speaker so its result is ready for review.
+
+## Context-aware translation
+
+The advanced llama.cpp and Ollama engines, the generic OpenAI-compatible engine, and Google Gemini
+all receive numbered batches instead of unrelated single lines. Each request includes recent
+source/translation pairs plus the immutable speaker ID, actor name, and reviewed gender when these
+are available. `Unknown` is sent explicitly for identified speakers and the prompt forbids the
+model from guessing it.
+
+Cloud engines use the same strict numbered-result contract as the local engines: every requested
+number must occur exactly once, with no extra keys. An incomplete response is retried and then
+split into a smaller batch; no partial response is applied. Only translated text is copied back to
+the rows, so speaker metadata and subtitle timing cannot be changed by the service.
 
 ## First vertical slice
 
