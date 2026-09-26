@@ -2103,7 +2103,8 @@
       "detectedXSpeakersYLines": "Detected {0} speakers and matched {1} subtitle lines",
       "noOverlappingSpeech": "Speakers were detected, but none of their speech overlaps the open subtitles.",
       "hfTokenSessionOnly": "Hugging Face token (this window only)",
-      "hfTokenHint": "Optional for WhisperX diarization. The token is not saved in Subtitle Edit settings."
+      "hfTokenHint": "Optional for WhisperX diarization. The token is not saved in Subtitle Edit settings.",
+      "playSample": "Play voice sample"
     },
     "joinSubtitles": {
       "title": "Join subtitles",

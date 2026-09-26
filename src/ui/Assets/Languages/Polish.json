@@ -2084,7 +2084,8 @@
       "detectedXSpeakersYLines": "Wykryto {0} mówców i przypisano ich do {1} linii napisów",
       "noOverlappingSpeech": "Wykryto mówców, ale ich wypowiedzi nie pokrywają się czasowo z otwartymi napisami.",
       "hfTokenSessionOnly": "Token Hugging Face (tylko w tym oknie)",
-      "hfTokenHint": "Opcjonalny przy wykrywaniu mówców przez WhisperX. Token nie jest zapisywany w ustawieniach Subtitle Edit."
+      "hfTokenHint": "Opcjonalny przy wykrywaniu mówców przez WhisperX. Token nie jest zapisywany w ustawieniach Subtitle Edit.",
+      "playSample": "Odsłuchaj próbkę głosu"
     },
     "joinSubtitles": {
       "title": "Dołącz napisy",

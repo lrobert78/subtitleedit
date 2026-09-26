@@ -15,8 +15,15 @@ namespace Nikse.SubtitleEdit.Features.Tools.SpeakerProfiles;
 public partial class SpeakerProfilesViewModel : ObservableObject
 {
     [ObservableProperty] private ObservableCollection<SpeakerProfileRow> _rows;
-    [ObservableProperty] private SpeakerProfileRow? _selectedRow;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(PlaySampleCommand))]
+    private SpeakerProfileRow? _selectedRow;
     [ObservableProperty] private string _summaryText;
+    [ObservableProperty] private bool _isPlayVisible;
+
+    private Action<int>? _playLine;
+    private Action? _stopPlayback;
+    private bool _hasPlayed;
 
     public Window? Window { get; set; }
     public bool OkPressed { get; private set; }
@@ -31,12 +38,17 @@ public partial class SpeakerProfilesViewModel : ObservableObject
         RenamedSpeakers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
-    public void Initialize(Subtitle subtitle)
+    public void Initialize(Subtitle subtitle, Action<int>? playLine = null, Action? stopPlayback = null)
     {
+        _playLine = playLine;
+        _stopPlayback = stopPlayback;
+        _hasPlayed = false;
+        IsPlayVisible = playLine != null;
         var rows = new List<SpeakerProfileRow>();
         var actors = subtitle.Paragraphs
-            .Where(p => !string.IsNullOrWhiteSpace(p.Actor))
-            .GroupBy(p => SpeakerProfileCollection.NormalizeActor(p.Actor!), StringComparer.OrdinalIgnoreCase)
+            .Select((paragraph, index) => (paragraph, index))
+            .Where(item => !string.IsNullOrWhiteSpace(item.paragraph.Actor))
+            .GroupBy(item => SpeakerProfileCollection.NormalizeActor(item.paragraph.Actor!), StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(group => group.Count())
             .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -50,7 +62,7 @@ public partial class SpeakerProfilesViewModel : ObservableObject
                 : new SpeakerProfile(existing);
             profile.DisplayName = actor.Key;
             representedProfileIds.Add(profile.Id);
-            rows.Add(new SpeakerProfileRow(profile, actor.Key, actor.Count()));
+            rows.Add(new SpeakerProfileRow(profile, actor.Key, actor.Count(), ChooseSampleParagraphIndex(actor)));
         }
 
         foreach (var profile in subtitle.SpeakerProfiles.Profiles
@@ -66,6 +78,51 @@ public partial class SpeakerProfilesViewModel : ObservableObject
             Se.Language.Tools.SpeakerProfiles.SummaryXSpeakersYLines,
             actors.Count,
             actors.Sum(group => group.Count()));
+    }
+
+    private static int? ChooseSampleParagraphIndex(IEnumerable<(Paragraph paragraph, int index)> lines)
+    {
+        var candidates = lines
+            .Where(item => item.paragraph.DurationTotalSeconds > 0)
+            .OrderBy(item => item.index)
+            .ToList();
+        var shortSample = candidates
+            .Where(item => item.paragraph.DurationTotalSeconds is >= 0.5 and <= 8)
+            .OrderByDescending(item => item.paragraph.DurationTotalSeconds)
+            .ThenBy(item => item.index)
+            .FirstOrDefault();
+        if (shortSample.paragraph != null)
+        {
+            return shortSample.index;
+        }
+
+        return candidates
+            .OrderBy(item => Math.Abs(item.paragraph.DurationTotalSeconds - 4))
+            .ThenBy(item => item.index)
+            .Select(item => (int?)item.index)
+            .FirstOrDefault();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanPlaySample))]
+    private void PlaySample()
+    {
+        if (SelectedRow?.SampleParagraphIndex is not int index || _playLine == null)
+        {
+            return;
+        }
+
+        _hasPlayed = true;
+        _playLine(index);
+    }
+
+    private bool CanPlaySample() => _playLine != null && SelectedRow?.SampleParagraphIndex != null;
+
+    public void OnClosing()
+    {
+        if (_hasPlayed)
+        {
+            _stopPlayback?.Invoke();
+        }
     }
 
     [RelayCommand]

@@ -51,4 +51,58 @@ public class SpeakerProfilesViewModelTests
         Assert.Equal("manual", profile.Source);
         Assert.Null(profile.Confidence);
     }
+
+    [Fact]
+    public void PlaySample_UsesLongestPracticalLineAndStopsOnClose()
+    {
+        var subtitle = new Subtitle();
+        subtitle.Paragraphs.Add(new Paragraph("Short", 0, 1000) { Actor = "Speaker 1" });
+        subtitle.Paragraphs.Add(new Paragraph("Clearer", 1000, 5000) { Actor = "Speaker 1" });
+        subtitle.Paragraphs.Add(new Paragraph("Very long", 5000, 20000) { Actor = "Speaker 1" });
+        int? playedIndex = null;
+        var stopped = false;
+        var vm = new SpeakerProfilesViewModel();
+
+        vm.Initialize(subtitle, index => playedIndex = index, () => stopped = true);
+        Assert.Equal(1, Assert.Single(vm.Rows).SampleParagraphIndex);
+        Assert.True(vm.PlaySampleCommand.CanExecute(null));
+
+        vm.PlaySampleCommand.Execute(null);
+        vm.OnClosing();
+
+        Assert.Equal(1, playedIndex);
+        Assert.True(stopped);
+    }
+
+    [Fact]
+    public void PlaySample_IsUnavailableWithoutVideoOrSpeakerLines()
+    {
+        var subtitle = new Subtitle();
+        subtitle.SpeakerProfiles.AddOrUpdate(new SpeakerProfile { DisplayName = "Speaker 1" });
+        var vm = new SpeakerProfilesViewModel();
+
+        vm.Initialize(subtitle, _ => { }, () => { });
+
+        Assert.Null(Assert.Single(vm.Rows).SampleParagraphIndex);
+        Assert.False(vm.PlaySampleCommand.CanExecute(null));
+
+        subtitle.Paragraphs.Add(new Paragraph("Hello", 0, 1000) { Actor = "Speaker 1" });
+        vm.Initialize(subtitle);
+        Assert.False(vm.IsPlayVisible);
+        Assert.False(vm.PlaySampleCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void ClosingWithoutPreviewDoesNotStopExistingPlayback()
+    {
+        var subtitle = new Subtitle();
+        subtitle.Paragraphs.Add(new Paragraph("Hello", 0, 1000) { Actor = "Speaker 1" });
+        var stopped = false;
+        var vm = new SpeakerProfilesViewModel();
+
+        vm.Initialize(subtitle, _ => { }, () => stopped = true);
+        vm.OnClosing();
+
+        Assert.False(stopped);
+    }
 }

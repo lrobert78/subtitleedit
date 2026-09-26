@@ -50,6 +50,10 @@ subtitle, allows names and gender metadata to be corrected, and records manual g
 `source: "manual"`. Saving the subtitle writes the sidecar when profiles exist (or updates an
 existing sidecar); opening the subtitle restores it automatically. Auto Cast creates an `Unknown`
 profile for each diarized speaker so its result is ready for review.
+When a video is open, the profile editor offers **Play voice sample** for the selected speaker.
+It chooses a subtitle line of practical length and plays only that line through the existing
+video player; profiles with no assigned lines have no sample. This supports manual review of
+gender without pretending that diarization itself can identify it.
 
 ## Context-aware translation
 

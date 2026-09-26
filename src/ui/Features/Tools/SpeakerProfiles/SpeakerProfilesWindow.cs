@@ -43,13 +43,30 @@ public class SpeakerProfilesWindow : Window
 
         root.Add(BuildHeader(vm), 0);
         root.Add(BuildTable(vm), 1);
-        root.Add(UiUtil.MakeButtonBar(
+        var buttons = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
+            },
+        };
+        var playButton = UiUtil.MakeButton(Se.Language.Tools.SpeakerProfiles.PlaySample, vm.PlaySampleCommand)
+            .WithIconLeft("fa-solid fa-play");
+        playButton.Bind(IsVisibleProperty, new Binding(nameof(vm.IsPlayVisible)));
+        buttons.Add(playButton, 0, 0);
+        buttons.Add(UiUtil.MakeButtonBar(
             UiUtil.MakeButtonOk(vm.OkCommand),
-            UiUtil.MakeButtonCancel(vm.CancelCommand)), 2);
+            UiUtil.MakeButtonCancel(vm.CancelCommand)), 0, 1);
+        root.Add(buttons, 2);
 
         Content = root;
         KeyDown += (_, e) => vm.OnKeyDown(e);
-        Closing += (_, _) => UiUtil.SaveWindowPosition(this);
+        Closing += (_, _) =>
+        {
+            vm.OnClosing();
+            UiUtil.SaveWindowPosition(this);
+        };
         Loaded += (_, _) => UiUtil.RestoreWindowPosition(this);
     }
 
