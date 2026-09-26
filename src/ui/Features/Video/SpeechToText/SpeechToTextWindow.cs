@@ -252,6 +252,27 @@ public class SpeechToTextWindow : Window
             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
         });
 
+        var labelHfToken = UiUtil.MakeTextBlock(Se.Language.Tools.SpeakerProfiles.HfTokenSessionOnly)
+            .WithMarginTop(10)
+            .BindIsVisible(vm, nameof(vm.IsWhisperXTokenVisible));
+        var textBoxHfToken = new TextBox
+        {
+            Width = 320,
+            PasswordChar = '●',
+            Margin = new Thickness(0, 10, 0, 0),
+        }.BindIsVisible(vm, nameof(vm.IsWhisperXTokenVisible))
+            .WithLabeledBy(labelHfToken);
+        textBoxHfToken.Bind(TextBox.TextProperty, new Binding(nameof(vm.SessionHfToken))
+        {
+            Source = vm,
+            Mode = BindingMode.TwoWay,
+            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+        });
+        if (Se.Settings.Appearance.ShowHints)
+        {
+            ToolTip.SetTip(textBoxHfToken, Se.Language.Tools.SpeakerProfiles.HfTokenHint);
+        }
+
         var progressBar = UiUtil.MakeProgressBar();
         AutomationProperties.SetName(progressBar, Se.Language.Video.AudioToText.Transcribe);
         progressBar.Margin = new Thickness(10, 0, 10, 8);
@@ -374,7 +395,7 @@ public class SpeechToTextWindow : Window
         // progress panel + buttons. The count is derived from the engine row arrays so adding an online engine
         // cannot leave trailing rows clamped onto the last row (which made the labels overlap the progress text).
         const int fixedRowsBeforeOnlineStt = 8;
-        const int fixedRowsAfterOnlineStt = 5;
+        const int fixedRowsAfterOnlineStt = 6;
         var onlineSttRowCount = openAiRows.Length + openRouterRows.Length + dashScopeRows.Length + googleCloudRows.Length;
         var totalRowCount = fixedRowsBeforeOnlineStt + onlineSttRowCount + fixedRowsAfterOnlineStt;
         var progressRow = totalRowCount - 1;
@@ -478,6 +499,10 @@ public class SpeechToTextWindow : Window
 
         grid.Add(labelPostProcessing, row, 0);
         grid.Add(panelPostProcessingControls, row, 1);
+        row++;
+
+        grid.Add(labelHfToken, row, 0);
+        grid.Add(textBoxHfToken, row, 1);
         row++;
 
         grid.Add(labelAdvancedSettings, row, 0);

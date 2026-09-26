@@ -2101,7 +2101,9 @@
       "loadWarningX": "Speaker profiles were ignored: {0}",
       "detectFromVideo": "Detect speakers in video...",
       "detectedXSpeakersYLines": "Detected {0} speakers and matched {1} subtitle lines",
-      "noOverlappingSpeech": "Speakers were detected, but none of their speech overlaps the open subtitles."
+      "noOverlappingSpeech": "Speakers were detected, but none of their speech overlaps the open subtitles.",
+      "hfTokenSessionOnly": "Hugging Face token (this window only)",
+      "hfTokenHint": "Optional for WhisperX diarization. The token is not saved in Subtitle Edit settings."
     },
     "joinSubtitles": {
       "title": "Join subtitles",

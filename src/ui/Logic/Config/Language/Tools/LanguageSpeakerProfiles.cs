@@ -13,6 +13,8 @@ public class LanguageSpeakerProfiles
     public string DetectFromVideo { get; set; }
     public string DetectedXSpeakersYLines { get; set; }
     public string NoOverlappingSpeech { get; set; }
+    public string HfTokenSessionOnly { get; set; }
+    public string HfTokenHint { get; set; }
 
     public LanguageSpeakerProfiles()
     {
@@ -27,5 +29,7 @@ public class LanguageSpeakerProfiles
         DetectFromVideo = "Detect speakers in video...";
         DetectedXSpeakersYLines = "Detected {0} speakers and matched {1} subtitle lines";
         NoOverlappingSpeech = "Speakers were detected, but none of their speech overlaps the open subtitles.";
+        HfTokenSessionOnly = "Hugging Face token (this window only)";
+        HfTokenHint = "Optional for WhisperX diarization. The token is not saved in Subtitle Edit settings.";
     }
 }

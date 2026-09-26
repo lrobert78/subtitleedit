@@ -32,6 +32,7 @@ public partial class SpeechToTextAdvancedViewModel : ObservableObject
     public Window? Window { get; set; }
     public List<ISpeechToTextEngine> Engines { get; set; }
     public ISpeechToTextEngine? SelectedEngine { get; set; }
+    public Action<string>? WhisperXTokenCaptured { get; set; }
 
     public bool OkPressed { get; private set; }
 
@@ -58,7 +59,7 @@ public partial class SpeechToTextAdvancedViewModel : ObservableObject
         HelpText = engine.Name + Environment.NewLine + Environment.NewLine + helpText;
         RefreshVadCpp(engine);
         SelectedEngine = Engines.FirstOrDefault(p => p.Name == engine.Name);
-        Parameters = engine.CommandLineParameter;
+        Parameters = SanitizeWhisperXParameters(engine, engine.CommandLineParameter);
     }
 
     [RelayCommand]
@@ -336,12 +337,28 @@ public partial class SpeechToTextAdvancedViewModel : ObservableObject
     {
         if (SelectedEngine != null)
         {
-            SelectedEngine.CommandLineParameter = Parameters;
+            SelectedEngine.CommandLineParameter = SanitizeWhisperXParameters(SelectedEngine, Parameters);
             Se.SaveSettings();
         }
 
         OkPressed = true;
         Window?.Close();
+    }
+
+    private string SanitizeWhisperXParameters(ISpeechToTextEngine engine, string parameters)
+    {
+        if (engine is not WhisperEngineWhisperX)
+        {
+            return parameters;
+        }
+
+        var (clean, token) = SpeechToTextViewModel.ExtractWhisperXTokenArgument(parameters);
+        if (token != null)
+        {
+            WhisperXTokenCaptured?.Invoke(token);
+        }
+
+        return clean;
     }
 
     [RelayCommand]

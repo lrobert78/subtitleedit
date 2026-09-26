@@ -75,8 +75,11 @@ same data without depending on transcription text or changing subtitle timing.
 
 With a subtitle and video open, **Tools → Detect speakers in video...** starts the existing
 WhisperX speech-to-text engine with `--diarize` for this run. WhisperX uses pyannote for speaker
-diarization and may require a Hugging Face access token and acceptance of the model's terms; enter
-the token in WhisperX's command-line parameters as `--hf_token ...` if needed. On platforms without
+diarization and may require a Hugging Face access token and acceptance of the model's terms. If
+needed, enter it in the masked **Hugging Face token (this window only)** field after selecting
+WhisperX. It is passed to the WhisperX child process as `HF_TOKEN`, not saved in Subtitle Edit
+settings or placed in its command-line arguments. A previously saved `--hf_token` argument is
+moved into this session-only field when the speech-to-text window opens. On platforms without
 the bundled WhisperX build, the dialog starts with MOSS Diarize instead. The transcript is used
 only for its speaker labels and times: the open subtitle keeps its text and timing, gains actor
 assignments and `Unknown` gender profiles, and can be reviewed in **Speaker profiles...**.

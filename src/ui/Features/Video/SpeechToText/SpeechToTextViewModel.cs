@@ -44,6 +44,9 @@ namespace Nikse.SubtitleEdit.Features.Video.SpeechToText;
 public partial class SpeechToTextViewModel : ObservableObject
 {
     private bool _diarizationRequested;
+    private static readonly Regex WhisperXTokenArgumentRegex = new(
+        "(?<!\\S)--hf_token(?:\\s+|=)(?:\\\"(?<double>[^\\\"]*)\\\"|'(?<single>[^']*)'|(?<plain>\\S+))",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
     [ObservableProperty] private ObservableCollection<ISpeechToTextEngine> _engines;
     [ObservableProperty] private ISpeechToTextEngine _selectedEngine;
 
@@ -62,6 +65,8 @@ public partial class SpeechToTextViewModel : ObservableObject
     [ObservableProperty] private bool _addLanguageCodeToFileName;
 
     [ObservableProperty] private string _parameters;
+    [ObservableProperty] private string _sessionHfToken = string.Empty;
+    [ObservableProperty] private bool _isWhisperXTokenVisible;
 
     [ObservableProperty] private string _consoleLog;
 
@@ -422,7 +427,14 @@ public partial class SpeechToTextViewModel : ObservableObject
             }
         }
 
-        Parameters = GetEffectiveSelectedEngine().CommandLineParameter;
+        // Migrate a previously saved --hf_token even when another engine is selected.
+        var whisperXEngine = Engines.OfType<WhisperEngineWhisperX>().FirstOrDefault();
+        if (whisperXEngine != null)
+        {
+            GetSafeEngineParameters(whisperXEngine);
+        }
+
+        Parameters = GetSafeEngineParameters(GetEffectiveSelectedEngine());
 
         EngineChanged();
     }
@@ -434,7 +446,20 @@ public partial class SpeechToTextViewModel : ObservableObject
         Se.Settings.Tools.AudioToText.CrispAsrIsolateSpeech = DoIsolateSpeech;
         Se.Settings.Tools.AudioToText.WhisperAddLanguageCodeToFileName = AddLanguageCodeToFileName;
         var engine = GetEffectiveSelectedEngine();
-        engine.CommandLineParameter = Parameters;
+        var parameters = Parameters ?? string.Empty;
+        if (engine is WhisperEngineWhisperX)
+        {
+            var (clean, token) = ExtractWhisperXTokenArgument(parameters);
+            if (token != null)
+            {
+                SessionHfToken = token;
+                Parameters = clean;
+            }
+
+            parameters = clean;
+        }
+
+        engine.CommandLineParameter = parameters;
         Se.Settings.Tools.AudioToText.WhisperChoice = engine.Choice;
         // Keep the remembered model/language when the current engine simply doesn't show
         // those pickers (online STT engines null them out): overwriting with empty strings
@@ -3591,12 +3616,13 @@ public partial class SpeechToTextViewModel : ObservableObject
             viewModal =>
             {
                 viewModal.Engines = Engines.ToList();
+                viewModal.WhisperXTokenCaptured = token => SessionHfToken = token;
                 viewModal.EngineClickedCommand.Execute(SelectedEngine);
             });
 
         if (vm.OkPressed)
         {
-            Parameters = GetEffectiveSelectedEngine().CommandLineParameter;
+            Parameters = GetSafeEngineParameters(GetEffectiveSelectedEngine());
         }
     }
 
@@ -4430,9 +4456,10 @@ public partial class SpeechToTextViewModel : ObservableObject
         if (engine is WhisperEngineWhisperX whisperX)
         {
             var exe = whisperX.GetExecutable();
+            var safeWhisperXArgs = GetSafeEngineParameters(whisperX);
             var whisperXArgs = _diarizationRequested
-                ? EnsureWhisperXDiarizeArgument(whisperX.CommandLineParameter)
-                : whisperX.CommandLineParameter;
+                ? EnsureWhisperXDiarizeArgument(safeWhisperXArgs)
+                : safeWhisperXArgs;
             var languageArgX = language.Equals("auto", StringComparison.OrdinalIgnoreCase)
                 ? string.Empty
                 : $"--language {language} ";
@@ -4474,6 +4501,11 @@ public partial class SpeechToTextViewModel : ObservableObject
             return StartEngineProcess(exe, parametersX, dataReceivedHandler, startInfo =>
             {
                 AddFfmpegToPath(startInfo);
+
+                if (!string.IsNullOrWhiteSpace(SessionHfToken))
+                {
+                    startInfo.EnvironmentVariables["HF_TOKEN"] = SessionHfToken.Trim();
+                }
 
                 if (!string.IsNullOrEmpty(matplotlibCacheFolder))
                 {
@@ -5344,10 +5376,11 @@ public partial class SpeechToTextViewModel : ObservableObject
         IsDashScopeSttVisible = engine is DashScopeQwen3SttEngine;
         IsGoogleCloudSttVisible = engine is GoogleCloudSttEngine;
         IsAdvancedSettingsVisible = !isOnlineSttEngine;
+        IsWhisperXTokenVisible = engine is WhisperEngineWhisperX;
 
         UpdateTranslateVisibility();
 
-        Parameters = engine.CommandLineParameter;
+        Parameters = GetSafeEngineParameters(engine);
 
         UpdateEngineStatusUi(engine);
 
@@ -5770,7 +5803,7 @@ public partial class SpeechToTextViewModel : ObservableObject
             SelectedEngine = engine;
         }
 
-        Parameters = GetEffectiveSelectedEngine().CommandLineParameter;
+        Parameters = GetSafeEngineParameters(GetEffectiveSelectedEngine());
         EngineChanged();
     }
 
@@ -5819,10 +5852,38 @@ public partial class SpeechToTextViewModel : ObservableObject
 
     internal static string RedactWhisperXToken(string arguments)
     {
-        return Regex.Replace(arguments,
-            "(?<!\\S)--hf_token(?:\\s+|=)(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)",
-            "--hf_token [redacted]",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        return WhisperXTokenArgumentRegex.Replace(arguments, "--hf_token [redacted]");
+    }
+
+    internal static (string Arguments, string? Token) ExtractWhisperXTokenArgument(string arguments)
+    {
+        string? token = null;
+        var clean = WhisperXTokenArgumentRegex.Replace(arguments ?? string.Empty, match =>
+        {
+            token = match.Groups["double"].Success ? match.Groups["double"].Value :
+                match.Groups["single"].Success ? match.Groups["single"].Value :
+                match.Groups["plain"].Value;
+            return string.Empty;
+        });
+        return (clean.Trim(), token);
+    }
+
+    private string GetSafeEngineParameters(ISpeechToTextEngine engine)
+    {
+        var parameters = engine.CommandLineParameter ?? string.Empty;
+        if (engine is not WhisperEngineWhisperX)
+        {
+            return parameters;
+        }
+
+        var (clean, token) = ExtractWhisperXTokenArgument(parameters);
+        if (token != null)
+        {
+            SessionHfToken = token;
+            engine.CommandLineParameter = clean;
+        }
+
+        return clean;
     }
 
     internal void InitializeBatch(List<AudioClip> audioClips, int audioTrackNumber, bool autoStart, string? language)
@@ -5872,6 +5933,7 @@ public partial class SpeechToTextViewModel : ObservableObject
 
     internal void OnWindowClosing(WindowClosingEventArgs e)
     {
+        SessionHfToken = string.Empty;
         _timerWhisper.StopAndDispose(OnTimerWhisperOnElapsed);
         _timerAudioExtract.StopAndDispose(OnTimerAudioExtractOnElapsed);
 

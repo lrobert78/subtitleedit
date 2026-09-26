@@ -20,4 +20,18 @@ public class WhisperXDiarizationArgumentsTests
     {
         Assert.Equal(expected, SpeechToTextViewModel.RedactWhisperXToken(original));
     }
+
+    [Theory]
+    [InlineData("--hf_token hf_example --diarize", "--diarize", "hf_example")]
+    [InlineData("--diarize --hf_token=hf_example", "--diarize", "hf_example")]
+    [InlineData("--hf_token=\"hf example\" --diarize", "--diarize", "hf example")]
+    [InlineData("--diarize --hf_token 'hf example'", "--diarize", "hf example")]
+    [InlineData("--diarize", "--diarize", null)]
+    public void HuggingFaceTokenIsRemovedFromPersistedArguments(string original, string expectedArguments, string? expectedToken)
+    {
+        var (arguments, token) = SpeechToTextViewModel.ExtractWhisperXTokenArgument(original);
+
+        Assert.Equal(expectedArguments, arguments);
+        Assert.Equal(expectedToken, token);
+    }
 }
