@@ -15,8 +15,32 @@ public partial class SpeakerProfileRow : ObservableObject
 
     [ObservableProperty] private string _name;
     [ObservableProperty] private SpeakerGender _gender;
+    [ObservableProperty] private SpeakerGender? _suggestedGender;
+    [ObservableProperty] private double? _suggestedConfidence;
+
+    public bool AcceptedSuggestion { get; private set; }
 
     public string ConfidenceDisplay => Confidence.HasValue ? $"{Confidence.Value:P0}" : string.Empty;
+    public string SuggestionDisplay => SuggestedGender.HasValue && SuggestedConfidence.HasValue
+        ? $"{SuggestedGender} ({SuggestedConfidence.Value:P0})"
+        : string.Empty;
+
+    partial void OnGenderChanged(SpeakerGender value) => AcceptedSuggestion = false;
+
+    partial void OnSuggestedGenderChanged(SpeakerGender? value) => OnPropertyChanged(nameof(SuggestionDisplay));
+
+    partial void OnSuggestedConfidenceChanged(double? value) => OnPropertyChanged(nameof(SuggestionDisplay));
+
+    public void AcceptSuggestion()
+    {
+        if (Gender != SpeakerGender.Unknown || SuggestedGender == null)
+        {
+            return;
+        }
+
+        Gender = SuggestedGender.Value;
+        AcceptedSuggestion = true;
+    }
 
     public SpeakerProfileRow(SpeakerProfile profile, string originalName, int lineCount, int? sampleParagraphIndex = null)
     {

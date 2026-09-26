@@ -2085,7 +2085,14 @@
       "noOverlappingSpeech": "Wykryto mówców, ale ich wypowiedzi nie pokrywają się czasowo z otwartymi napisami.",
       "hfTokenSessionOnly": "Token Hugging Face (tylko w tym oknie)",
       "hfTokenHint": "Opcjonalny przy wykrywaniu mówców przez WhisperX. Token nie jest zapisywany w ustawieniach Subtitle Edit.",
-      "playSample": "Odsłuchaj próbkę głosu"
+      "playSample": "Odsłuchaj próbkę głosu",
+      "suggestGender": "Zaproponuj na podstawie głosów",
+      "applySuggestion": "Zatwierdź sugestię",
+      "suggestion": "Sugestia",
+      "suggesting": "Analizuję głosy lokalnie...",
+      "suggestedCountX": "Sugestie dla {0} mówców. Sprawdź każdą przed zatwierdzeniem.",
+      "pythonSetupRequired": "Zainstaluj numpy, librosa, onnxruntime i huggingface_hub w środowisku Python 3. Ustaw SUBTITLEEDIT_GENDER_PYTHON na ścieżkę do jego interpretera.",
+      "suggestHint": "Przy pierwszym użyciu pobiera mały publiczny model. Dźwięk pozostaje na komputerze; wynik wymaga zatwierdzenia."
     },
     "joinSubtitles": {
       "title": "Dołącz napisy",

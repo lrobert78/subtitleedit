@@ -5,10 +5,13 @@ using CommunityToolkit.Mvvm.Input;
 using Nikse.SubtitleEdit.Core.Common;
 using Nikse.SubtitleEdit.Logic;
 using Nikse.SubtitleEdit.Logic.Config;
+using Nikse.SubtitleEdit.Logic.Media;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Nikse.SubtitleEdit.Features.Tools.SpeakerProfiles;
 
@@ -17,13 +20,21 @@ public partial class SpeakerProfilesViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<SpeakerProfileRow> _rows;
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(PlaySampleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApplySuggestionCommand))]
     private SpeakerProfileRow? _selectedRow;
     [ObservableProperty] private string _summaryText;
     [ObservableProperty] private bool _isPlayVisible;
+    [ObservableProperty] private bool _isSuggestVisible;
+    [ObservableProperty] private bool _isSuggesting;
+    [ObservableProperty] private string _suggestionStatus = string.Empty;
 
     private Action<int>? _playLine;
     private Action? _stopPlayback;
     private bool _hasPlayed;
+    private Subtitle? _subtitle;
+    private string? _videoFileName;
+    private int? _audioTrackIndex;
+    private CancellationTokenSource? _suggestionCancellation;
 
     public Window? Window { get; set; }
     public bool OkPressed { get; private set; }
@@ -38,8 +49,13 @@ public partial class SpeakerProfilesViewModel : ObservableObject
         RenamedSpeakers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
-    public void Initialize(Subtitle subtitle, Action<int>? playLine = null, Action? stopPlayback = null)
+    public void Initialize(Subtitle subtitle, Action<int>? playLine = null, Action? stopPlayback = null,
+        string? videoFileName = null, int? audioTrackIndex = null)
     {
+        _subtitle = subtitle;
+        _videoFileName = videoFileName;
+        _audioTrackIndex = audioTrackIndex;
+        IsSuggestVisible = !string.IsNullOrWhiteSpace(videoFileName);
         _playLine = playLine;
         _stopPlayback = stopPlayback;
         _hasPlayed = false;
@@ -70,6 +86,17 @@ public partial class SpeakerProfilesViewModel : ObservableObject
                      .OrderBy(profile => profile.DisplayName, StringComparer.OrdinalIgnoreCase))
         {
             rows.Add(new SpeakerProfileRow(new SpeakerProfile(profile), profile.DisplayName, 0));
+        }
+
+        foreach (var row in rows)
+        {
+            row.PropertyChanged += (_, e) =>
+            {
+                if (row == SelectedRow && e.PropertyName is nameof(row.Gender) or nameof(row.SuggestedGender))
+                {
+                    ApplySuggestionCommand.NotifyCanExecuteChanged();
+                }
+            };
         }
 
         Rows = new ObservableCollection<SpeakerProfileRow>(rows);
@@ -117,8 +144,73 @@ public partial class SpeakerProfilesViewModel : ObservableObject
 
     private bool CanPlaySample() => _playLine != null && SelectedRow?.SampleParagraphIndex != null;
 
+    [RelayCommand]
+    private async Task SuggestGender()
+    {
+        if (IsSuggesting || _subtitle == null || string.IsNullOrWhiteSpace(_videoFileName))
+        {
+            return;
+        }
+
+        IsSuggesting = true;
+        SuggestionStatus = Se.Language.Tools.SpeakerProfiles.Suggesting;
+        _suggestionCancellation = new CancellationTokenSource();
+        try
+        {
+            var suggestions = await SpeakerGenderSuggestionRunner.RunAsync(
+                _subtitle, _videoFileName, FfmpegHelper.GetFfmpegLocation(), _audioTrackIndex,
+                _suggestionCancellation.Token);
+            var count = 0;
+            foreach (var suggestion in suggestions)
+            {
+                var row = Rows.FirstOrDefault(candidate =>
+                    string.Equals(SpeakerProfileCollection.NormalizeActor(candidate.OriginalName),
+                        SpeakerProfileCollection.NormalizeActor(suggestion.Actor), StringComparison.OrdinalIgnoreCase));
+                if (row == null || row.Gender != SpeakerGender.Unknown)
+                {
+                    continue;
+                }
+
+                row.SuggestedGender = suggestion.Gender;
+                row.SuggestedConfidence = suggestion.Confidence;
+                count++;
+            }
+
+            SuggestionStatus = string.Format(Se.Language.Tools.SpeakerProfiles.SuggestedCountX, count);
+            ApplySuggestionCommand.NotifyCanExecuteChanged();
+        }
+        catch (OperationCanceledException)
+        {
+            SuggestionStatus = string.Empty;
+        }
+        catch (Exception exception)
+        {
+            SuggestionStatus = exception.Message.Contains("Missing local Python packages", StringComparison.Ordinal) ||
+                exception.Message.Contains("Python 3 is required", StringComparison.Ordinal)
+                ? Se.Language.Tools.SpeakerProfiles.PythonSetupRequired
+                : exception.Message;
+        }
+        finally
+        {
+            IsSuggesting = false;
+            _suggestionCancellation.Dispose();
+            _suggestionCancellation = null;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanApplySuggestion))]
+    private void ApplySuggestion()
+    {
+        SelectedRow?.AcceptSuggestion();
+        ApplySuggestionCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanApplySuggestion() => SelectedRow?.Gender == SpeakerGender.Unknown &&
+        SelectedRow.SuggestedGender.HasValue;
+
     public void OnClosing()
     {
+        _suggestionCancellation?.Cancel();
         if (_hasPlayed)
         {
             _stopPlayback?.Invoke();
@@ -150,8 +242,8 @@ public partial class SpeakerProfilesViewModel : ObservableObject
                 Id = row.Id,
                 DisplayName = name,
                 Gender = row.Gender,
-                Confidence = genderChanged ? null : row.Confidence,
-                Source = genderChanged ? "manual" : row.Source,
+                Confidence = genderChanged ? row.AcceptedSuggestion ? row.SuggestedConfidence : null : row.Confidence,
+                Source = genderChanged ? row.AcceptedSuggestion ? "classifier" : "manual" : row.Source,
             });
         }
 

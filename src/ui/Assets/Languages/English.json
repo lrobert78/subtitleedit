@@ -2104,7 +2104,14 @@
       "noOverlappingSpeech": "Speakers were detected, but none of their speech overlaps the open subtitles.",
       "hfTokenSessionOnly": "Hugging Face token (this window only)",
       "hfTokenHint": "Optional for WhisperX diarization. The token is not saved in Subtitle Edit settings.",
-      "playSample": "Play voice sample"
+      "playSample": "Play voice sample",
+      "suggestGender": "Suggest from voices",
+      "applySuggestion": "Accept suggestion",
+      "suggestion": "Suggestion",
+      "suggesting": "Analyzing voices locally...",
+      "suggestedCountX": "Suggestions for {0} speakers. Review each one before accepting.",
+      "pythonSetupRequired": "Install numpy, librosa, onnxruntime, and huggingface_hub in Python 3. Set SUBTITLEEDIT_GENDER_PYTHON to that Python executable.",
+      "suggestHint": "Downloads a small public model on first use. Audio stays on this computer; results need your approval."
     },
     "joinSubtitles": {
       "title": "Join subtitles",

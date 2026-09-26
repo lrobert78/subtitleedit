@@ -20,9 +20,9 @@ public class SpeakerProfilesWindow : Window
     {
         UiUtil.InitializeWindow(this, GetType().Name);
         Title = Se.Language.Tools.SpeakerProfiles.Title;
-        Width = 760;
+        Width = 930;
         Height = 480;
-        MinWidth = 620;
+        MinWidth = 880;
         MinHeight = 340;
         CanResize = true;
 
@@ -54,7 +54,20 @@ public class SpeakerProfilesWindow : Window
         var playButton = UiUtil.MakeButton(Se.Language.Tools.SpeakerProfiles.PlaySample, vm.PlaySampleCommand)
             .WithIconLeft("fa-solid fa-play");
         playButton.Bind(IsVisibleProperty, new Binding(nameof(vm.IsPlayVisible)));
-        buttons.Add(playButton, 0, 0);
+        var suggestButton = UiUtil.MakeButton(Se.Language.Tools.SpeakerProfiles.SuggestGender, vm.SuggestGenderCommand);
+        suggestButton.Bind(IsVisibleProperty, new Binding(nameof(vm.IsSuggestVisible)));
+        if (Se.Settings.Appearance.ShowHints)
+        {
+            ToolTip.SetTip(suggestButton, Se.Language.Tools.SpeakerProfiles.SuggestHint);
+        }
+        var applyButton = UiUtil.MakeButton(Se.Language.Tools.SpeakerProfiles.ApplySuggestion, vm.ApplySuggestionCommand);
+        applyButton.Bind(IsVisibleProperty, new Binding(nameof(vm.IsSuggestVisible)));
+        buttons.Add(new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Children = { playButton, suggestButton, applyButton },
+        }, 0, 0);
         buttons.Add(UiUtil.MakeButtonBar(
             UiUtil.MakeButtonOk(vm.OkCommand),
             UiUtil.MakeButtonCancel(vm.CancelCommand)), 0, 1);
@@ -93,6 +106,12 @@ public class SpeakerProfilesWindow : Window
                 {
                     Foreground = UiUtil.GetTextColor(0.55d),
                     [!TextBlock.TextProperty] = new Binding(nameof(vm.SummaryText)),
+                },
+                new TextBlock
+                {
+                    Foreground = UiUtil.GetTextColor(0.65d),
+                    TextWrapping = TextWrapping.Wrap,
+                    [!TextBlock.TextProperty] = new Binding(nameof(vm.SuggestionStatus)),
                 },
             },
         };
@@ -136,6 +155,14 @@ public class SpeakerProfilesWindow : Window
                 ItemsSource = GenderOptions,
                 [!SelectingItemsControl.SelectedItemProperty] = new Binding(nameof(SpeakerProfileRow.Gender)) { Mode = BindingMode.TwoWay },
             }),
+        });
+        table.Columns.Add(new SeTableViewColumn
+        {
+            Header = Se.Language.Tools.SpeakerProfiles.Suggestion,
+            Binding = new Binding(nameof(SpeakerProfileRow.SuggestionDisplay)),
+            Width = new GridLength(135),
+            CellTheme = UiUtil.TableViewCellTheme,
+            HeaderTheme = UiUtil.TableViewColumnHeaderTheme,
         });
         table.Columns.Add(new SeTableViewColumn
         {

@@ -20,6 +20,7 @@ not replace the editor, waveform, media pipeline, speech-to-text engines, or sub
 4. Actor and gender fields in the existing advanced llama.cpp/Ollama batch protocol. **Complete.**
 5. A provider-neutral context-batch protocol for OpenAI-compatible APIs and Gemini. **Complete.**
 6. A diarization assignment abstraction and an optional WhisperX/pyannote path. **Complete.**
+7. Optional local voice-gender suggestions with explicit review. **Complete.**
 
 ## Sidecar format
 
@@ -54,6 +55,23 @@ When a video is open, the profile editor offers **Play voice sample** for the se
 It chooses a subtitle line of practical length and plays only that line through the existing
 video player; profiles with no assigned lines have no sample. This supports manual review of
 gender without pretending that diarization itself can identify it.
+
+**Suggest from voices** is an optional, local classifier run in the same editor. It requires
+Python 3 and `numpy`, `librosa`, `onnxruntime`, and `huggingface_hub` in that Python environment.
+Use a virtual environment (`python3 -m venv <folder>` followed by
+`<folder>/bin/python -m pip install numpy librosa onnxruntime huggingface_hub` on macOS/Linux),
+then set `SUBTITLEEDIT_GENDER_PYTHON` to its Python executable before starting Subtitle Edit.
+Without that variable, the app tries the system `python3` (or `python` on Windows). The public, pinned
+[`syntropicsignal-ai/gender-voice-classifier`](https://huggingface.co/syntropicsignal-ai/gender-voice-classifier)
+ONNX model is downloaded on first use. Audio is decoded from the open video locally with ffmpeg;
+it is not uploaded. Up to three 3–8 second lines per unidentified speaker are analyzed. A
+suggestion appears only when at least two clips agree with strong model scores. The user must
+select a row and choose **Accept suggestion** before the profile changes. Existing female, male,
+and non-binary profiles are skipped, and an accepted suggestion records `source: "classifier"`
+and its score; a subsequent manual change records `source: "manual"` instead. This binary model
+estimates a voice category, not a person's gender identity, and does not reliably cover every
+voice, accent, or recording condition;
+`Unknown` is the correct outcome when evidence is insufficient.
 
 ## Context-aware translation
 

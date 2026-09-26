@@ -8523,7 +8523,8 @@ public partial class MainViewModel :
         var subtitle = GetUpdateSubtitle();
         var playableLines = Subtitles.Where(line => !line.IsReferenceOnly).ToList();
         var result = await ShowDialogAsync<SpeakerProfilesWindow, SpeakerProfilesViewModel>(vm =>
-            vm.Initialize(subtitle, MakeReviewLinePlayer(playableLines), StopReviewLinePlayback));
+            vm.Initialize(subtitle, MakeReviewLinePlayer(playableLines), StopReviewLinePlayback,
+                _videoFileName, _audioTrack?.FfIndex));
         if (!result.OkPressed)
         {
             return;

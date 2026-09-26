@@ -105,4 +105,63 @@ public class SpeakerProfilesViewModelTests
 
         Assert.False(stopped);
     }
+
+    [Fact]
+    public void SuggestionRequiresAcceptanceBeforeItChangesSavedProfile()
+    {
+        var subtitle = new Subtitle();
+        subtitle.Paragraphs.Add(new Paragraph("Hello", 0, 2000) { Actor = "Speaker 1" });
+        var vm = new SpeakerProfilesViewModel();
+        vm.Initialize(subtitle);
+        var row = Assert.Single(vm.Rows);
+        row.SuggestedGender = SpeakerGender.Female;
+        row.SuggestedConfidence = 0.96;
+
+        vm.OkCommand.Execute(null);
+
+        var profile = Assert.Single(vm.ResultProfiles.Profiles);
+        Assert.Equal(SpeakerGender.Unknown, profile.Gender);
+        Assert.NotEqual("classifier", profile.Source);
+    }
+
+    [Fact]
+    public void AcceptedSuggestionRetainsClassifierProvenanceAndConfidence()
+    {
+        var subtitle = new Subtitle();
+        subtitle.Paragraphs.Add(new Paragraph("Hello", 0, 2000) { Actor = "Speaker 1" });
+        var vm = new SpeakerProfilesViewModel();
+        vm.Initialize(subtitle);
+        var row = Assert.Single(vm.Rows);
+        row.SuggestedGender = SpeakerGender.Female;
+        row.SuggestedConfidence = 0.96;
+
+        vm.ApplySuggestionCommand.Execute(null);
+        vm.OkCommand.Execute(null);
+
+        var profile = Assert.Single(vm.ResultProfiles.Profiles);
+        Assert.Equal(SpeakerGender.Female, profile.Gender);
+        Assert.Equal("classifier", profile.Source);
+        Assert.Equal(0.96, profile.Confidence);
+    }
+
+    [Fact]
+    public void ManualChoiceAfterSuggestionClearsClassifierProvenance()
+    {
+        var subtitle = new Subtitle();
+        subtitle.Paragraphs.Add(new Paragraph("Hello", 0, 2000) { Actor = "Speaker 1" });
+        var vm = new SpeakerProfilesViewModel();
+        vm.Initialize(subtitle);
+        var row = Assert.Single(vm.Rows);
+        row.SuggestedGender = SpeakerGender.Female;
+        row.SuggestedConfidence = 0.96;
+
+        vm.ApplySuggestionCommand.Execute(null);
+        row.Gender = SpeakerGender.Male;
+        vm.OkCommand.Execute(null);
+
+        var profile = Assert.Single(vm.ResultProfiles.Profiles);
+        Assert.Equal(SpeakerGender.Male, profile.Gender);
+        Assert.Equal("manual", profile.Source);
+        Assert.Null(profile.Confidence);
+    }
 }
