@@ -104,39 +104,17 @@ public static partial class SpeakerLabelParser
         IReadOnlyList<Paragraph> lines,
         IReadOnlyList<Paragraph> segments)
     {
-        var byLine = new Dictionary<Paragraph, string>();
-        var labelled = segments
-            .Select(s => (Speaker: GetSegmentSpeaker(s), Segment: s))
-            .Where(s => !string.IsNullOrEmpty(s.Speaker))
+        var intervals = segments
+            .Select(segment => (Segment: segment, Speaker: GetSegmentSpeaker(segment)))
+            .Where(item => !string.IsNullOrWhiteSpace(item.Speaker) &&
+                           item.Segment.StartTime.TotalMilliseconds >= 0 &&
+                           item.Segment.EndTime.TotalMilliseconds > item.Segment.StartTime.TotalMilliseconds)
+            .Select(item => new SpeakerDiarizationSegment(
+                item.Segment.StartTime.TotalMilliseconds,
+                item.Segment.EndTime.TotalMilliseconds,
+                item.Speaker))
             .ToList();
-        if (labelled.Count == 0)
-        {
-            return byLine;
-        }
-
-        foreach (var line in lines)
-        {
-            var bySpeaker = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (speaker, segment) in labelled)
-            {
-                var overlap = Math.Min(line.EndTime.TotalMilliseconds, segment.EndTime.TotalMilliseconds)
-                              - Math.Max(line.StartTime.TotalMilliseconds, segment.StartTime.TotalMilliseconds);
-                if (overlap <= 0)
-                {
-                    continue;
-                }
-
-                bySpeaker.TryGetValue(speaker, out var running);
-                bySpeaker[speaker] = running + overlap;
-            }
-
-            if (bySpeaker.Count > 0)
-            {
-                byLine[line] = bySpeaker.OrderByDescending(p => p.Value).First().Key;
-            }
-        }
-
-        return byLine;
+        return SpeakerOverlapAssigner.Assign(lines, intervals);
     }
 
     private static string GetSegmentSpeaker(Paragraph segment)

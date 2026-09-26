@@ -19,7 +19,7 @@ not replace the editor, waveform, media pipeline, speech-to-text engines, or sub
 3. Actor and gender metadata in `TranslateRow`. **Complete.**
 4. Actor and gender fields in the existing advanced llama.cpp/Ollama batch protocol. **Complete.**
 5. A provider-neutral context-batch protocol for OpenAI-compatible APIs and Gemini. **Complete.**
-6. A diarization assignment abstraction, followed by an optional pyannote backend.
+6. A diarization assignment abstraction. **Complete.** An optional pyannote backend remains future work.
 
 ## Sidecar format
 
@@ -63,6 +63,15 @@ Cloud engines use the same strict numbered-result contract as the local engines:
 number must occur exactly once, with no extra keys. An incomplete response is retried and then
 split into a smaller batch; no partial response is applied. Only translated text is copied back to
 the rows, so speaker metadata and subtitle timing cannot be changed by the service.
+
+## Diarization assignment
+
+`SpeakerDiarizationSegment` carries only a time interval and a speaker identifier. The shared
+`SpeakerOverlapAssigner` maps these intervals to existing subtitle paragraphs by the largest
+covered duration. Overlapping intervals for the same speaker are counted once; silent lines and
+exact ties remain unassigned. The assigner does not edit subtitles. Auto Cast converts its current
+speech-to-text speaker labels into these intervals, so a later diarization backend can supply the
+same data without depending on transcription text or changing subtitle timing.
 
 ## First vertical slice
 
