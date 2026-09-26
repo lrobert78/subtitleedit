@@ -574,6 +574,11 @@ public static class InitMenu
             },
             new MenuItem
             {
+                Header = Se.Language.Tools.SpeakerProfiles.DetectFromVideo,
+                Command = vm.ShowVideoDetectSpeakersCommand,
+            },
+            new MenuItem
+            {
                 Header = l.RemoveUnicodeCharacters,
                 Command = vm.ShowToolsRemoveUnicodeCharactersCommand,
             },

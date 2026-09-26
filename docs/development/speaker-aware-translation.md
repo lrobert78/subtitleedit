@@ -19,7 +19,7 @@ not replace the editor, waveform, media pipeline, speech-to-text engines, or sub
 3. Actor and gender metadata in `TranslateRow`. **Complete.**
 4. Actor and gender fields in the existing advanced llama.cpp/Ollama batch protocol. **Complete.**
 5. A provider-neutral context-batch protocol for OpenAI-compatible APIs and Gemini. **Complete.**
-6. A diarization assignment abstraction. **Complete.** An optional pyannote backend remains future work.
+6. A diarization assignment abstraction and an optional WhisperX/pyannote path. **Complete.**
 
 ## Sidecar format
 
@@ -72,6 +72,14 @@ covered duration. Overlapping intervals for the same speaker are counted once; s
 exact ties remain unassigned. The assigner does not edit subtitles. Auto Cast converts its current
 speech-to-text speaker labels into these intervals, so a later diarization backend can supply the
 same data without depending on transcription text or changing subtitle timing.
+
+With a subtitle and video open, **Tools → Detect speakers in video...** starts the existing
+WhisperX speech-to-text engine with `--diarize` for this run. WhisperX uses pyannote for speaker
+diarization and may require a Hugging Face access token and acceptance of the model's terms; enter
+the token in WhisperX's command-line parameters as `--hf_token ...` if needed. On platforms without
+the bundled WhisperX build, the dialog starts with MOSS Diarize instead. The transcript is used
+only for its speaker labels and times: the open subtitle keeps its text and timing, gains actor
+assignments and `Unknown` gender profiles, and can be reviewed in **Speaker profiles...**.
 
 ## First vertical slice
 

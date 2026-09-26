@@ -13,6 +13,7 @@ public class SpeakerLabelParserTests
     [Theory]
     [InlineData("(Speaker 1) Hello there.", "Speaker 1", "Hello there.")]
     [InlineData("[SPEAKER 2] Hello there.", "Speaker 2", "Hello there.")]
+    [InlineData("[SPEAKER_00]: Hello there.", "Speaker 0", "Hello there.")]
     [InlineData("SPEAKER_00: Hello there.", "Speaker 0", "Hello there.")]
     [InlineData("Speaker 3: Hello there.", "Speaker 3", "Hello there.")]
     [InlineData("  ( speaker  4 )   Hello there.", "Speaker 4", "Hello there.")]

@@ -126,6 +126,9 @@ public class AutoCastApplyTests : IDisposable
         Assert.Equal(2, vm.Subtitles.Count);
         Assert.Equal("Alice", vm.Subtitles[0].Actor);
         Assert.Equal("Bob", vm.Subtitles[1].Actor);
+        Assert.Equal("Hello there.", vm.Subtitles[0].Text);
+        Assert.Equal(1000, vm.Subtitles[0].StartTime.TotalMilliseconds);
+        Assert.Equal(2000, vm.Subtitles[0].EndTime.TotalMilliseconds);
         Assert.Equal(2, vm.GetUpdateSubtitle().SpeakerProfiles.Profiles.Count);
     }
 

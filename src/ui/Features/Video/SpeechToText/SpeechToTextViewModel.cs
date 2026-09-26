@@ -43,6 +43,7 @@ namespace Nikse.SubtitleEdit.Features.Video.SpeechToText;
 
 public partial class SpeechToTextViewModel : ObservableObject
 {
+    private bool _diarizationRequested;
     [ObservableProperty] private ObservableCollection<ISpeechToTextEngine> _engines;
     [ObservableProperty] private ISpeechToTextEngine _selectedEngine;
 
@@ -4429,7 +4430,9 @@ public partial class SpeechToTextViewModel : ObservableObject
         if (engine is WhisperEngineWhisperX whisperX)
         {
             var exe = whisperX.GetExecutable();
-            var whisperXArgs = whisperX.CommandLineParameter;
+            var whisperXArgs = _diarizationRequested
+                ? EnsureWhisperXDiarizeArgument(whisperX.CommandLineParameter)
+                : whisperX.CommandLineParameter;
             var languageArgX = language.Equals("auto", StringComparison.OrdinalIgnoreCase)
                 ? string.Empty
                 : $"--language {language} ";
@@ -4467,7 +4470,7 @@ public partial class SpeechToTextViewModel : ObservableObject
                 matplotlibCacheFolder = string.Empty;
             }
 
-            Se.WriteToolsLog($"{exe} {parametersX}");
+            Se.WriteToolsLog($"{exe} {RedactWhisperXToken(parametersX)}");
             return StartEngineProcess(exe, parametersX, dataReceivedHandler, startInfo =>
             {
                 AddFfmpegToPath(startInfo);
@@ -5784,8 +5787,10 @@ public partial class SpeechToTextViewModel : ObservableObject
     /// need a specific one - "find the voices in the video" needs an engine that tells speakers
     /// apart. The user can still switch it in the window; nothing is forced beyond the first view.
     /// </param>
-    internal void Initialize(string? videoFileName, int audioTrackNumber, string? preferredEngineChoice = null)
+    internal void Initialize(string? videoFileName, int audioTrackNumber, string? preferredEngineChoice = null,
+        bool diarizationRequested = false)
     {
+        _diarizationRequested = diarizationRequested;
         _videoFileName = videoFileName;
         _audioTrackNumber = audioTrackNumber;
         _audioTrackVideoFileName = videoFileName;
@@ -5802,6 +5807,22 @@ public partial class SpeechToTextViewModel : ObservableObject
             IsSingleModeVisible = false;
             IsBatchMode = false;
         }
+    }
+
+    internal static string EnsureWhisperXDiarizeArgument(string arguments)
+    {
+        var value = arguments ?? string.Empty;
+        return Regex.IsMatch(value, @"(?:^|\s)--diarize(?:\s|$)", RegexOptions.CultureInvariant)
+            ? value
+            : (value.Trim() + " --diarize").Trim();
+    }
+
+    internal static string RedactWhisperXToken(string arguments)
+    {
+        return Regex.Replace(arguments,
+            "(?<!\\S)--hf_token(?:\\s+|=)(?:\\\"[^\\\"]*\\\"|'[^']*'|\\S+)",
+            "--hf_token [redacted]",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     internal void InitializeBatch(List<AudioClip> audioClips, int audioTrackNumber, bool autoStart, string? language)

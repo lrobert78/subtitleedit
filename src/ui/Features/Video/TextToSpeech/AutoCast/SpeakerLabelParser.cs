@@ -19,11 +19,11 @@ namespace Nikse.SubtitleEdit.Features.Video.TextToSpeech.AutoCast;
 public static partial class SpeakerLabelParser
 {
     /// <summary>
-    /// "(Speaker 1)", "[SPEAKER 2]", "SPEAKER_00:", "Speaker 3:" - bracketed or followed by a
+    /// "(Speaker 1)", "[SPEAKER_00]:", "SPEAKER_00:", "Speaker 3:" - bracketed or followed by a
     /// colon, at the very start of the line. Anything else is left alone: a line that merely
     /// mentions a speaker is not a label, and guessing wrong silently renames somebody's dialogue.
     /// </summary>
-    [GeneratedRegex(@"^\s*(?:[\(\[]\s*(?<name>speaker[ _-]*\d+)\s*[\)\]]|(?<name>speaker[ _-]*\d+)\s*:)\s*",
+    [GeneratedRegex(@"^\s*(?:[\(\[]\s*(?<name>speaker[ _-]*\d+)\s*[\)\]]\s*:?|(?<name>speaker[ _-]*\d+)\s*:)\s*",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SpeakerPrefixRegex();
 

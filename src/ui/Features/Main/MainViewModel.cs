@@ -201,6 +201,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -8544,6 +8545,78 @@ public partial class MainViewModel :
 
         _undoRedoManager.Do(MakeUndoRedoObject(Se.Language.Tools.SpeakerProfiles.Title));
         RefreshSubtitlePreview();
+    }
+
+    [RelayCommand]
+    private async Task ShowVideoDetectSpeakers()
+    {
+        if (Window == null)
+        {
+            return;
+        }
+
+        if (IsEmpty)
+        {
+            ShowSubtitleNotLoadedMessage();
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_videoFileName))
+        {
+            await MessageBox.Show(Window, Se.Language.General.Error,
+                Se.Language.Video.TextToSpeech.AutoCastNeedsVideo,
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        if (!await RequireFfmpegOk())
+        {
+            return;
+        }
+
+        var whisperXSupported =
+            OperatingSystem.IsWindows() && RuntimeInformation.ProcessArchitecture == Architecture.X64 ||
+            OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ||
+            OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64;
+        var preferredEngine = whisperXSupported ? WhisperChoice.WhisperX : WhisperChoice.CrispAsrMossDiarize;
+        var result = await ShowDialogAsync<SpeechToTextWindow, SpeechToTextViewModel>(vm =>
+            vm.Initialize(_videoFileName, _audioTrack?.FfIndex ?? -1, preferredEngine, diarizationRequested: true));
+        if (!result.OkPressed || result.TranscribedSubtitle == null)
+        {
+            return;
+        }
+
+        var transcription = result.TranscribedSubtitle;
+        if (SpeakerLabelParser.MoveLabelsToActors(transcription) == 0)
+        {
+            await MessageBox.Show(Window, Se.Language.General.Error,
+                Se.Language.Video.TextToSpeech.AutoCastNoSpeakersFound,
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var currentLines = Subtitles.Select(line => line.ToParagraph()).ToList();
+        var matches = SpeakerLabelParser.AssignSpeakersByOverlap(currentLines, transcription.Paragraphs);
+        if (matches.Count == 0)
+        {
+            await MessageBox.Show(Window, Se.Language.General.Error,
+                Se.Language.Tools.SpeakerProfiles.NoOverlappingSpeech,
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _undoRedoManager.CheckForChanges(null);
+        ApplyAutoCastToSubtitle(transcription, new Dictionary<string, string>());
+        _undoRedoManager.Do(MakeUndoRedoObject(Se.Language.Tools.SpeakerProfiles.DetectFromVideo));
+        RefreshSubtitlePreview();
+
+        var speakerCount = transcription.Paragraphs
+            .Select(paragraph => paragraph.Actor)
+            .Where(actor => !string.IsNullOrWhiteSpace(actor))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+        ShowStatus(string.Format(Se.Language.Tools.SpeakerProfiles.DetectedXSpeakersYLines,
+            speakerCount, matches.Count));
     }
 
     [RelayCommand]

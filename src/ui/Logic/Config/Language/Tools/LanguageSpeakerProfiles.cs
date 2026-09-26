@@ -10,6 +10,9 @@ public class LanguageSpeakerProfiles
     public string Source { get; set; }
     public string SaveErrorX { get; set; }
     public string LoadWarningX { get; set; }
+    public string DetectFromVideo { get; set; }
+    public string DetectedXSpeakersYLines { get; set; }
+    public string NoOverlappingSpeech { get; set; }
 
     public LanguageSpeakerProfiles()
     {
@@ -21,5 +24,8 @@ public class LanguageSpeakerProfiles
         Source = "Source";
         SaveErrorX = "The subtitle was saved, but its speaker profiles could not be saved: {0}";
         LoadWarningX = "Speaker profiles were ignored: {0}";
+        DetectFromVideo = "Detect speakers in video...";
+        DetectedXSpeakersYLines = "Detected {0} speakers and matched {1} subtitle lines";
+        NoOverlappingSpeech = "Speakers were detected, but none of their speech overlaps the open subtitles.";
     }
 }
