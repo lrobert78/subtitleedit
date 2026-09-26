@@ -2079,6 +2079,11 @@
       "onlyNames": "Tylko nazwiska",
       "numberOfConversionsX": "Liczba konwersji: {0}"
     },
+    "speakerProfiles": {
+      "detectFromVideo": "Wykryj mówców w wideo...",
+      "detectedXSpeakersYLines": "Wykryto {0} mówców i przypisano ich do {1} linii napisów",
+      "noOverlappingSpeech": "Wykryto mówców, ale ich wypowiedzi nie pokrywają się czasowo z otwartymi napisami."
+    },
     "joinSubtitles": {
       "title": "Dołącz napisy",
       "keepTimeCodes": "Zachowaj kody czasowe",

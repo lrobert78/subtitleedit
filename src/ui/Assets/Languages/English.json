@@ -2098,7 +2098,10 @@
       "confidence": "Confidence",
       "source": "Source",
       "saveErrorX": "The subtitle was saved, but its speaker profiles could not be saved: {0}",
-      "loadWarningX": "Speaker profiles were ignored: {0}"
+      "loadWarningX": "Speaker profiles were ignored: {0}",
+      "detectFromVideo": "Detect speakers in video...",
+      "detectedXSpeakersYLines": "Detected {0} speakers and matched {1} subtitle lines",
+      "noOverlappingSpeech": "Speakers were detected, but none of their speech overlaps the open subtitles."
     },
     "joinSubtitles": {
       "title": "Join subtitles",
